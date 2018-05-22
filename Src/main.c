@@ -41,7 +41,10 @@
 #include "stm32f4xx_hal.h"
 
 /* USER CODE BEGIN Includes */
+#include "SSD1331.h"
+#include "Fonts.h"
 #include "stm32f4_discovery.h"
+
 #include "stm32f4_discovery_accelerometer.h"
 /* USER CODE END Includes */
 
@@ -70,6 +73,134 @@ static void MX_I2S3_Init(void);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
+
+bool GameOver;
+const int width = 60;
+const int height = 40;
+int x, y, fruitX, fruitY, score;
+int	tailX[100], tailY[100];
+int nTail;
+enum eDirection {STOP = 0, UP, DOWN, LEFT, RIGHT};
+enum eDirection dir;
+void Setup() {
+	GameOver = false;
+	dir = STOP;
+	x = width / 2;
+	y = height / 2;
+	fruitX = rand() % width;
+	fruitY = rand() % height;
+	score = 0;
+}
+
+void Draw() {
+	ssd1331_clear_screen(BLACK);   // wyczyszczenie ekranu
+	for (int i = 0; i < width; i++) {
+		ssd1331_draw_point(i, 0, BLUE);
+	
+	}
+	//printf(" /n");
+	int i;
+	for (i=1; i < height; i++) {
+		for (int j = 0; j < width; j++) {
+			//if (j == 0)
+				ssd1331_draw_point(0, i, BLUE);
+			if (i == y && j == x){
+				ssd1331_draw_point(j, i, GREEN);
+				ssd1331_draw_point(j+1, i, GREEN);
+				ssd1331_draw_point(j-1, i, GREEN);
+				ssd1331_draw_point(j+1, i+1, GREEN);
+				ssd1331_draw_point(j+1, i-1, GREEN);
+				ssd1331_draw_point(j-1, i+1, GREEN);
+				ssd1331_draw_point(j-1, i-1, GREEN);
+				ssd1331_draw_point(j, i+1, GREEN);
+				ssd1331_draw_point(j, i-1, GREEN);
+			}
+			else if (i == fruitY && j == fruitX)
+				ssd1331_draw_point(j, i, RED);
+			else {
+				bool print = false;
+				for (int k = 0; k < nTail; k++)
+				{
+					if (tailX[k] == j && tailY[k] == i)
+					{
+						ssd1331_draw_point(j, i, GREEN);
+						print = true;
+					}
+
+				}
+				if (!print)
+					ssd1331_draw_point(j, i, BLACK);  
+			}
+			if (j == width - 1)
+				ssd1331_draw_point(j, i, BLUE);
+		}
+	//	printf(" /n");
+		//i++;
+	}
+
+	for (int i = 0; i < width ; i++) {
+		ssd1331_draw_point(i, 40, BLUE);
+	}
+	ssd1331_display_string(0, 41, "Score:  ", FONT_1206,YELLOW);
+	ssd1331_display_num(35, 41, score, 3, FONT_1206,YELLOW);
+}
+
+
+
+void Logic() {
+	int prevX = tailX[0];
+	int prevY = tailY[0];
+	int prev2X, prev2Y;
+	tailX[0] = x;
+	tailY[0] = y;
+
+	for (int i = 1; i < nTail; i++)
+	{
+		prev2X = tailX[i];
+		prev2Y = tailY[i];
+		tailX[i] = prevX;
+		tailY[i] = prevY;
+		prevX = prev2X;
+		prevY = prev2Y;
+	}
+
+	switch (dir)
+	{
+	case UP:
+		y--;
+		break;
+	case DOWN:
+		y++;
+		break;
+	case LEFT:
+		x--;
+		break;
+	case RIGHT:
+		x++;
+		break;
+	default:
+		break;
+	}
+	if (x > width || x < 0 || y<0 || y > height)
+		GameOver = true;
+	
+	for (int i = 0; i < nTail; i++)
+	{
+		if (tailX[i] == x && tailY[i] == y)
+			GameOver = true;
+	}
+	if ((x == fruitX && y == fruitY )|| (x+1 == fruitX && y == fruitY )|| (x-1 == fruitX && y == fruitY) ||
+		(x+1 == fruitX && y+1 == fruitY) ||( x+1 == fruitX && y-1 == fruitY) ||( x-1 == fruitX && y+1 == fruitY )||
+		(x-1 == fruitX && y-1 == fruitY) ||( x == fruitX && y+1 == fruitY )||( x == fruitX && y-1 == fruitY))
+	{
+		score += 10;
+	
+		fruitX = rand() % width;
+		fruitY = rand() % height;
+		nTail++;
+	}
+	
+}
 
 /* USER CODE END 0 */
 
@@ -106,20 +237,69 @@ int16_t xyz[3]={0};
   MX_I2C1_Init();
   MX_I2S3_Init();
   /* USER CODE BEGIN 2 */
+
 BSP_ACCELERO_Init();
-  /* USER CODE END 2 */
+ssd1331_init();
+
+
+
+
+/* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
+	Setup();
+	while(!GameOver)
+	{
+		
+
+	
+			Draw();
+		//Input();
+		Logic();
+		//HAL_Delay(500);
+		
+  
 
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
 BSP_ACCELERO_GetXYZ(xyz);
 	
+		if(xyz[2] <= 920  && xyz[0] <= 300 && xyz[0] >= -300 && xyz[1] <= 100){
+ 		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_SET);
+			dir = UP;
+ 	}else{
+ 		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_RESET);
   }
+	if(xyz[0] <= -250 && xyz[1] <= 300){
+ 		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET);
+		dir = RIGHT;
+ 	}else{
+ 		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_RESET);
+  }
+	if(xyz[1] >= 250 ){
+ 		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_SET);
+		dir = DOWN;
+ 	}else{
+ 		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_RESET);
+  }
+if(xyz[0] >= 300 ){
+ 		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_SET);
+	dir = LEFT;
+ 	}else{
+ 		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_RESET);
+  }
+
+	
+	
+	
+	
+}
+ssd1331_clear_screen(BLACK);
+ssd1331_display_string(20, 21, "GAME OVER!  ", FONT_1206,YELLOW);
+ssd1331_display_string(20, 41, "Score:  ", FONT_1206,YELLOW);
+ssd1331_display_num(55, 41, score, 3, FONT_1206,YELLOW);
   /* USER CODE END 3 */
 
 }
@@ -145,11 +325,11 @@ void SystemClock_Config(void)
     */
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSICalibrationValue = 16;
+  RCC_OscInitStruct.HSICalibrationValue =16;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
   RCC_OscInitStruct.PLL.PLLM = 8;
-  RCC_OscInitStruct.PLL.PLLN = 168;
+  RCC_OscInitStruct.PLL.PLLN =168;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = 7;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
@@ -163,10 +343,11 @@ void SystemClock_Config(void)
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+	
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_3) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
   }
@@ -196,7 +377,7 @@ static void MX_I2C1_Init(void)
 {
 
   hi2c1.Instance = I2C1;
-  hi2c1.Init.ClockSpeed = 100000;
+  hi2c1.Init.ClockSpeed = 1000000;
   hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
   hi2c1.Init.OwnAddress1 = 0;
   hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
@@ -273,16 +454,47 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3|RES_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : PE3 */
-  GPIO_InitStruct.Pin = GPIO_PIN_3;
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(DC_GPIO_Port, DC_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12|GPIO_PIN_13|GPIO_PIN_14|GPIO_PIN_15, GPIO_PIN_RESET);
+
+  /*Configure GPIO pins : PE3 RES_Pin */
+  GPIO_InitStruct.Pin = GPIO_PIN_3|RES_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : CS_Pin */
+  GPIO_InitStruct.Pin = CS_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(CS_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : DC_Pin */
+  GPIO_InitStruct.Pin = DC_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(DC_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PD12 PD13 PD14 PD15 */
+  GPIO_InitStruct.Pin = GPIO_PIN_12|GPIO_PIN_13|GPIO_PIN_14|GPIO_PIN_15;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
 }
 
