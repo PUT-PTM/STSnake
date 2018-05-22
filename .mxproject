@@ -1,7 +1,7 @@
 [PreviousGenFiles]
-HeaderPath=C:/Users/Adrian/Desktop/PTM_PROJEKTY/f4yt/Inc
+HeaderPath=C:/Users/Adrian/Desktop/PTM_PROJEKTY/fddf/f4yt/Inc
 HeaderFiles=stm32f4xx_it.h;stm32f4xx_hal_conf.h;main.h;
-SourcePath=C:/Users/Adrian/Desktop/PTM_PROJEKTY/f4yt/Src
+SourcePath=C:/Users/Adrian/Desktop/PTM_PROJEKTY/fddf/f4yt/Src
 SourceFiles=stm32f4xx_it.c;stm32f4xx_hal_msp.c;main.c;
 
 [PreviousLibFiles]
